@@ -7,7 +7,30 @@ ID Fan Failure Prediction
 2. added F1 Score metric in the results dataframe
 3. created proper evaluation visualizations, for ROC AUC, PR AUC, Confusion Matrix, and Classification Reports for the selected models
 
-All results and output can be found in [output](./output/) directory and they can be run locally or in Colab environment
+All results and output can be found in [output](./output/) directory:
+
+```sh
+output/
+├── ckpts
+│   ├── classification_report.png
+│   ├── confusion_matrix.png
+│   ├── roc_pr_curves.png
+│   ├── train_and_test_distribution.png
+│   └── *.joblib                            <- all model's saved as joblib
+│
+├── eda
+│   ├── correlation_heatmap.png
+│   ├── correlation_with_target_class.png
+│   ├── normalized_vibration_and_target_class.png
+│   └── power_and_target_class.png
+│
+├── processed_id_fan_data.csv
+└── results.csv
+
+```
+
+
+The notebook can be run locally or in Colab environment:
 
 ### How to run locally?
 
