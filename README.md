@@ -53,8 +53,24 @@ venv\Scripts\activate
 
 ```
 
-3. Open the [notebook](./notebooks/main.ipynb), and run all cells.
+3. Install dependencies:
+```sh
+pip install -r requirements.txt
+```
+
+4. Open the [notebook](./notebooks/main.ipynb), and run all cells.
+
+### How to run Streamlit app locally?
+
+1. Follow steps 1-3 from "How to run locally?" above to set up your environment and install dependencies.
+
+2. Run the Streamlit app:
+```sh
+streamlit run streamlit_app.py
+```
+
+The app will open in your default web browser at `http://localhost:8501`.
 
 ### How to run on Colab?
 
-Go to this [link](https://colab.research.google.com/github/ahmedsalim3/id-fan-failure-prediction/blob/main/notebooks/main.ipynb), and run all cells
+Go to this [link](https://colab.research.google.com/github/Syed-Muhammad-Rafay/ID-Fan-Project-MS-Thesis-/blob/main/notebooks/main.ipynb), and run all cells
