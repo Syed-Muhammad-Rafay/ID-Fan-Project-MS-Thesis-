@@ -88,6 +88,8 @@ if "all_predictions" not in st.session_state:
     st.session_state.all_predictions = {}
 if "evaluation_mode" not in st.session_state:
     st.session_state.evaluation_mode = "All Models"
+if "_input_method" not in st.session_state:
+    st.session_state._input_method = None
 
 # --- MAIN UI ---
 
@@ -106,19 +108,26 @@ if FEATURE_COLUMNS is None:
 with st.container(border=True):
     st.subheader("Data Input")
 
-    col_opt, col_act = st.columns([1, 2])
-
-    with col_opt:
+    with st.expander("Select Input Method", expanded=True):
         input_method = st.radio(
-            "Source:",
-            ["Upload CSV File", "Load Test Dataset"],
+            "Choose how to provide data:",
+            ["Upload CSV/Excel File", "Manual Input", "Load Test Dataset"],
             horizontal=True,
-            label_visibility="collapsed",
         )
 
-    with col_act:
-        if input_method == "Upload CSV File":
-            col_dl, col_up = st.columns(2)
+    if st.session_state._input_method is not None and st.session_state._input_method != input_method:
+        st.session_state.data = None
+        st.session_state.y_true = None
+        st.session_state.X_scaled = None
+        st.session_state.all_predictions = {}
+    
+    st.session_state._input_method = input_method
+
+    # UPLOAD CSV/EXCEL FILE MODE
+    if input_method == "Upload CSV/Excel File":
+        with st.expander("Upload File", expanded=True):
+            col_dl, col_up = st.columns([1, 2])
+
             with col_dl:
                 # Generate template
                 template_df = pd.DataFrame(columns=FEATURE_COLUMNS)
@@ -132,22 +141,83 @@ with st.container(border=True):
                 )
             with col_up:
                 uploaded_file = st.file_uploader(
-                    "Upload CSV", type=["csv"], label_visibility="collapsed"
+                    "Upload CSV or Excel File",
+                    type=["csv", "xlsx", "xls"],
                 )
 
             if uploaded_file is not None:
                 try:
-                    data = pd.read_csv(uploaded_file)
-                    if validate_features(data, FEATURE_COLUMNS):
+                    ext = uploaded_file.name.split('.')[-1].lower()
+                    if ext in ["xlsx", "xls"]:
+                        data = pd.read_excel(uploaded_file)
+                    else:
+                        data = pd.read_csv(uploaded_file)
+
+                    if len(data) == 0:
+                        st.error("Uploaded file is empty. Please upload a file with at least one row of data.")
+                    elif validate_features(data, FEATURE_COLUMNS):
                         st.session_state.data = data
                         st.session_state.y_true = None  # Reset
                         st.session_state.X_scaled = None  # Reset
                         st.session_state.all_predictions = {}  # Reset
                         st.success(f"Loaded {len(data)} rows.")
-                except Exception as e:
-                    st.error(f"Error reading CSV: {str(e)}")
 
-        elif input_method == "Load Test Dataset":
+                except Exception as e:
+                    st.error(f"Error reading file: {str(e)}")
+
+    # MANUAL INPUT MODE
+    elif input_method == "Manual Input":
+        with st.expander("Manual Feature Entry", expanded=True):
+
+            if "manual_inputs" not in st.session_state:
+                st.session_state.manual_inputs = {
+                    col: 0.0 for col in FEATURE_COLUMNS
+                }
+
+            num_cols = 3
+            rows = (len(FEATURE_COLUMNS) + num_cols - 1) // num_cols
+            cols_per_row = [st.columns(num_cols) for _ in range(rows)]
+
+            values = {}
+
+            for idx, feature in enumerate(FEATURE_COLUMNS):
+                row = idx // num_cols
+                col = idx % num_cols
+
+                with cols_per_row[row][col]:
+                    values[feature] = st.number_input(
+                        feature,
+                        value=float(st.session_state.manual_inputs.get(feature, 0.0)),
+                        step=0.0001,
+                        format="%.4f",
+                        key=f"manual_{feature}",
+                    )
+
+            st.session_state.manual_inputs = values
+
+            submit_manual = st.button(
+                "Submit Manual Input",
+                type="primary",
+                use_container_width=True,
+            )
+
+            if submit_manual:
+                try:
+                    data = pd.DataFrame([values])
+
+                    if validate_features(data, FEATURE_COLUMNS):
+                        st.session_state.data = data
+                        st.session_state.y_true = None
+                        st.session_state.X_scaled = None
+                        st.session_state.all_predictions = {}
+                        st.success("Manual input loaded successfully (1 row).")
+
+                except Exception as e:
+                    st.error(f"Error processing manual input: {str(e)}")
+
+    # LOAD TEST DATASET MODE
+    elif input_method == "Load Test Dataset":
+        with st.expander("Load Saved Test Dataset", expanded=True):
             load_btn = st.button(
                 "Load Default Test Dataset", type="primary", use_container_width=True
             )
@@ -171,7 +241,8 @@ with st.container(border=True):
 
     # Show Data Preview if loaded
     if st.session_state.data is not None:
-        st.dataframe(st.session_state.data[FEATURE_COLUMNS].head(), width="stretch")
+        with st.expander("Preview Loaded Data", expanded=False):
+            st.dataframe(st.session_state.data[FEATURE_COLUMNS], width="stretch")
 
 
 # --- SECTION 2: EVALUATION ---
@@ -183,6 +254,9 @@ if st.session_state.data is not None:
         # Scale Data Once
         if st.session_state.X_scaled is None:
             X = prepare_features(st.session_state.data, FEATURE_COLUMNS)
+            if X.empty or len(X) == 0:
+                st.error("No data available to scale. Please load data with at least one row.")
+                st.stop()
             st.session_state.X_scaled = scaler.transform(X)
 
         st.markdown("---")
